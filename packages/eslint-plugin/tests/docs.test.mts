@@ -1,6 +1,7 @@
 import 'jest-specific-snapshot';
 
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 
 import { parseForESLint } from '@typescript-eslint/parser';
 import * as tseslintParser from '@typescript-eslint/parser';
@@ -8,19 +9,32 @@ import { Linter } from '@typescript-eslint/utils/ts-eslint';
 import fs from 'fs';
 import { marked } from 'marked';
 import type * as mdast from 'mdast';
-import type { fromMarkdown as FromMarkdown } from 'mdast-util-from-markdown' with { 'resolution-mode': 'import' };
-import type { mdxFromMarkdown as MdxFromMarkdown } from 'mdast-util-mdx' with { 'resolution-mode': 'import' };
-import type { mdxjs as Mdxjs } from 'micromark-extension-mdxjs' with { 'resolution-mode': 'import' };
+import { fromMarkdown } from 'mdast-util-from-markdown';
+import { mdxFromMarkdown } from 'mdast-util-mdx';
+import { mdxjs } from 'micromark-extension-mdxjs';
 import path from 'path';
 import { titleCase } from 'title-case';
-import type * as UnistUtilVisit from 'unist-util-visit' with { 'resolution-mode': 'import' };
+import * as unistUtilVisit from 'unist-util-visit';
 
-import rules from '../src/rules';
-import { areOptionsValid } from './areOptionsValid';
-import { getFixturesRootDir } from './RuleTester';
+const rules = await interopDefault(
+  interopDefault(import('../src/rules/index.js')),
+);
+const { areOptionsValid } = await interopDefault(
+  import('./areOptionsValid.js'),
+);
+const { getFixturesRootDir } = await interopDefault(import('./RuleTester.js'));
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(__dirname, '../docs/rules');
 const rulesData = Object.entries(rules);
+
+async function interopDefault<T>(
+  m: T | Promise<T>,
+): Promise<T extends { default: infer U } ? U : T> {
+  const resolved = await m;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (resolved as any).default || resolved;
+}
 
 interface ParsedMarkdownFile {
   fullText: string;
@@ -110,21 +124,6 @@ const eslintOutputSnapshotFolder = path.resolve(
 fs.mkdirSync(eslintOutputSnapshotFolder, { recursive: true });
 
 describe('Validating rule docs', () => {
-  let fromMarkdown: typeof FromMarkdown;
-  let mdxjs: typeof Mdxjs;
-  let mdxFromMarkdown: typeof MdxFromMarkdown;
-  let unistUtilVisit: typeof UnistUtilVisit;
-  beforeAll(async () => {
-    // dynamic import('...') is transpiled to the require('...') call,
-    // but all modules imported below are ESM only, so we cannot require() them
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const dynamicImport = new Function('module', 'return import(module)');
-    ({ fromMarkdown } = await dynamicImport('mdast-util-from-markdown'));
-    ({ mdxjs } = await dynamicImport('micromark-extension-mdxjs'));
-    ({ mdxFromMarkdown } = await dynamicImport('mdast-util-mdx'));
-    unistUtilVisit = await dynamicImport('unist-util-visit');
-  });
-
   const ignoredFiles = new Set([
     'README.md',
     'TEMPLATE.md',

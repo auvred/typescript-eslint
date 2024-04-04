@@ -20,13 +20,20 @@ module.exports = {
     'node',
   ],
   setupFilesAfterEnv: ['console-fail-test/setup.js'],
-  testRegex: ['./tests/.+\\.test\\.ts$', './tests/.+\\.spec\\.ts$'],
+  testRegex: ['./tests/.+\\.test\\.m?ts$', './tests/.+\\.spec\\.ts$'],
+  extensionsToTreatAsEsm: ['.mts'],
+  moduleNameMapper: {
+    '(.+)\\.js': '$1',
+  },
   transform: {
-    '^.+\\.(t|j)sx?$': [
+    '^.+\\.m?(t|j)sx?$': [
       '@swc/jest',
       {
         jsc: {
           target: 'es2019',
+          parser: {
+            syntax: 'typescript',
+          },
           transform: {
             react: {
               runtime: 'automatic',
