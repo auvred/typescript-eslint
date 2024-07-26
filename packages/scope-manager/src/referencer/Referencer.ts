@@ -15,6 +15,8 @@ import {
 import { lib as TSLibraries } from '../lib';
 import type { GlobalScope, Scope } from '../scope';
 import type { ScopeManager } from '../ScopeManager';
+import type { Variable } from '../variable';
+import { ImplicitLibVariable } from '../variable';
 import { ClassVisitor } from './ClassVisitor';
 import { ExportVisitor } from './ExportVisitor';
 import { ImportVisitor } from './ImportVisitor';
@@ -30,6 +32,8 @@ interface ReferencerOptions extends VisitorOptions {
   jsxFragmentName: string | null;
   lib: Lib[];
 }
+
+const cachedGlobalTSVariables: Partial<Record<Lib, Variable[]>> = {};
 
 // Referencing variables and creating bindings.
 class Referencer extends Visitor {
@@ -84,13 +88,25 @@ class Referencer extends Visitor {
 
   private populateGlobalsFromLib(globalScope: GlobalScope): void {
     for (const lib of this.#lib) {
-      const variables = TSLibraries[lib];
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      /* istanbul ignore if */ if (!variables) {
-        throw new Error(`Invalid value for lib provided: ${lib}`);
+      let variables = cachedGlobalTSVariables[lib];
+      if (!variables) {
+        const vars = TSLibraries[lib];
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        /* istanbul ignore if */ if (!vars) {
+          throw new Error(`Invalid value for lib provided: ${lib}`);
+        }
+        variables = cachedGlobalTSVariables[lib] = Object.entries(vars).map(
+          ([name, options]) =>
+            new ImplicitLibVariable(
+              // @ts-expect-error - scope will be proxied to the globalScope instance in defineProxiedVariable method
+              undefined as Scope,
+              name,
+              options,
+            ),
+        );
       }
-      for (const [name, variable] of Object.entries(variables)) {
-        globalScope.defineImplicitVariable(name, variable);
+      for (const variable of variables) {
+        globalScope.defineProxiedVariable(variable);
       }
     }
 

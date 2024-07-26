@@ -2,6 +2,7 @@ import type { TSESTree } from '@typescript-eslint/types';
 import { AST_NODE_TYPES } from '@typescript-eslint/types';
 
 import { assert } from '../assert';
+import type { Definition } from '../definition';
 import { ImplicitGlobalVariableDefinition } from '../definition/ImplicitGlobalVariableDefinition';
 import type { Reference } from '../referencer/Reference';
 import type { ScopeManager } from '../ScopeManager';
@@ -45,6 +46,33 @@ class GlobalScope extends ScopeBase<
   ): void {
     this.defineVariable(
       new ImplicitLibVariable(this, name, options),
+      this.set,
+      this.variables,
+      null,
+      null,
+    );
+  }
+
+  public defineProxiedVariable(variable: Variable): void {
+    let references: Reference[] | undefined = undefined;
+    let identifiers: TSESTree.Identifier[] | undefined = undefined;
+    let defs: Definition[] | undefined = undefined;
+    this.defineVariable(
+      new Proxy(variable, {
+        get: (obj, property: keyof Variable): Variable[typeof property] => {
+          if (property === 'scope') {
+            return this;
+          } else if (property === 'references') {
+            return (references ??= []);
+          } else if (property === 'identifiers') {
+            return (identifiers ??= []);
+          } else if (property === 'defs') {
+            return (defs ??= []);
+          }
+
+          return obj[property];
+        },
+      }),
       this.set,
       this.variables,
       null,
